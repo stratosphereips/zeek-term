@@ -23,6 +23,12 @@ python zeek-term.py --foreground --directory . |less -RS
 # How it looks like
 <img width="1908" alt="image" src="https://github.com/user-attachments/assets/706b266c-647d-45a4-98a0-d6c4c24320d4">
 
+With --filter-conn
+<img width="1887" alt="image" src="https://github.com/user-attachments/assets/9185f083-3d42-4f49-80ea-524f9e7efb33">
+
+Without --foreground
+<img width="1914" alt="image" src="https://github.com/user-attachments/assets/854c6816-18af-4155-8ec2-be256c09cd87">
+
 
 # About
 
