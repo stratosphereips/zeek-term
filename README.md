@@ -18,6 +18,7 @@ python zeek-term.py --foreground --directory . |less -RS
 
 - `--foreground` is to use foreground colors instead of background
 - `--directory` is to set where the Zeek logs are
+- `--filter-conn` is to filter all the conn.log lines which UID is in other Zeek file. Therefore, if a flow produced other log appart from the conn.log, then the conn.log one is ignored. This is good if you want to know which conn.log lines do not have a recognizable protocol and are interesting to see. 
 
 # How it looks like
 <img width="1908" alt="image" src="https://github.com/user-attachments/assets/706b266c-647d-45a4-98a0-d6c4c24320d4">
