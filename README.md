@@ -1,15 +1,28 @@
-# Awesome Code Template
+# Zeek-term
 
-This repository is a template with basic elements that every repository at Stratosphere should follow.
+Zeek-term is a python program that reads several Zeek log files (conn.log, http.log, files.log, ssl.log, quick.log, dns.log, ntp.log) and prints all the lines sorted by time. It also adds colors so it is easier to analyze.
+
 
 ## Features
 
-Write about what makes your [tool|code|data|repo] special.
+- Sorted logs from all the Zeek files.
+- Adds background color.
+- Adds foreground color.
+- Adds a column with the name of the file that each log cames from.
 
 ## Usage
 
-Write about how others can use your [tool|code|data|repo].
+```python
+python zeek-term.py --foreground --directory . |less -RS
+```
+
+- `--foreground` is to use foreground colors instead of background
+- `--directory` is to set where the Zeek logs are
+
+# How it looks like
+<img width="1908" alt="image" src="https://github.com/user-attachments/assets/706b266c-647d-45a4-98a0-d6c4c24320d4">
+
 
 # About
 
-This [tool|code|data|repo] was developed at the Stratosphere Laboratory at the Czech Technical University in Prague.
+This tool was developed at the Stratosphere Laboratory at the Czech Technical University in Prague by Sebastian Garcia, sebastian.garcia@agents.fel.cvut.cz
