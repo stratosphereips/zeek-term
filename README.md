@@ -27,7 +27,7 @@ With --filter-conn
 <img width="1887" alt="image" src="https://github.com/user-attachments/assets/9185f083-3d42-4f49-80ea-524f9e7efb33">
 
 Without --foreground
-<img width="1914" alt="image" src="https://github.com/user-attachments/assets/854c6816-18af-4155-8ec2-be256c09cd87">
+<img width="1890" alt="image" src="https://github.com/user-attachments/assets/c5798ddb-a765-4a31-8b84-c1bfba97550f">
 
 
 # About
