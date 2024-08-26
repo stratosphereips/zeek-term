@@ -1,6 +1,8 @@
+#!/usr/bin/env python
 import argparse
 import os
 import sys
+import json
 
 # Define ANSI escape codes for background and foreground colors
 background_colors = {
@@ -54,6 +56,28 @@ uids = set()
 # Select the appropriate color scheme
 color_scheme = foreground_colors if args.foreground else background_colors
 
+def process_text_log_line(log_type, parts):
+    if log_type == 'files' and len(parts) > 3:
+        uids.add(parts[2])  # Collect UID from files.log
+        parts = [parts[0]] + [log_type] + [parts[2]] + parts[3:]  # Remove FUID, keep UID
+    elif log_type != 'conn' and len(parts) > 1:
+        uids.add(parts[1])  # Collect UID from other logs
+        parts = [parts[0]] + [log_type] + [parts[1]] + parts[2:]  # Keep UID column, add log type
+        log_entries.append(('\t'.join(parts), color_scheme[log_type]))
+    elif log_type == 'conn' and len(parts) > 1:
+        conn_entries.append(parts)
+
+def process_json_log_line(log_type, data):
+    if log_type == 'files':
+        uids.add(data['uid'])  # Collect UID from files.log
+        data = {'ts': data['ts'], 'log_type': log_type, 'uid': data['uid'], **data}
+    elif log_type != 'conn':
+        uids.add(data['uid'])  # Collect UID from other logs
+        data = {'ts': data['ts'], 'log_type': log_type, 'uid': data['uid'], **data}
+        log_entries.append((json.dumps(data), color_scheme[log_type]))
+    elif log_type == 'conn':
+        conn_entries.append(data)
+
 # Read and process each file
 for log_type, filename in file_patterns.items():
     filepath = os.path.join(args.directory, filename)
@@ -61,30 +85,28 @@ for log_type, filename in file_patterns.items():
         with open(filepath, 'r') as file:
             for line in file:
                 if not line.startswith('#'):
-                    parts = line.strip().split('\t')
-                    if log_type == 'files' and len(parts) > 3:
-                        uids.add(parts[2])  # Collect UID from files.log
-                        parts = [parts[0]] + [log_type] + [parts[2]] + parts[3:]  # Remove FUID, keep UID
-                    elif log_type != 'conn' and len(parts) > 1:
-                        uids.add(parts[1])  # Collect UID from other logs
-                        parts = [parts[0]] + [log_type] + [parts[1]] + parts[2:]  # Keep UID column, add log type
-                        log_entries.append(('\t'.join(parts), color_scheme[log_type]))
-                    elif log_type == 'conn' and len(parts) > 1:
-                        conn_entries.append(parts)
+                    try:
+                        # Try to parse JSON
+                        data = json.loads(line.strip())
+                        process_json_log_line(log_type, data)
+                    except json.JSONDecodeError:
+                        # Fallback to text-based processing
+                        parts = line.strip().split('\t')
+                        process_text_log_line(log_type, parts)
 
 # Process conn.log entries and filter based on UIDs
 if args.filter_conn:
     for parts in conn_entries:
-        if parts[1] not in uids:
-            parts = [parts[0]] + ['conn'] + [parts[1]] + parts[2:]  # Keep UID column, add log type
-            log_entries.append(('\t'.join(parts), color_scheme['conn']))
+        if parts['uid'] not in uids:
+            data = {'ts': parts['ts'], 'log_type': 'conn', 'uid': parts['uid'], **parts}
+            log_entries.append((json.dumps(data), color_scheme['conn']))
 else:
     for parts in conn_entries:
-        parts = [parts[0]] + ['conn'] + [parts[1]] + parts[2:]  # Keep UID column, add log type
-        log_entries.append(('\t'.join(parts), color_scheme['conn']))
+        data = {'ts': parts['ts'], 'log_type': 'conn', 'uid': parts['uid'], **parts}
+        log_entries.append((json.dumps(data), color_scheme['conn']))
 
 # Sort the log entries by the timestamp (first column)
-log_entries.sort(key=lambda x: float(x[0].split('\t')[0]))
+log_entries.sort(key=lambda x: float(x[0].split('\t')[0]) if '\t' in x[0] else json.loads(x[0])['ts'])
 
 # Print the sorted log entries with appropriate colors
 for entry, color in log_entries:
