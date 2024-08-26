@@ -13,7 +13,8 @@ background_colors = {
     'x509': '\033[30;45m',  # Black text on Magenta
     'files': '\033[30;46m', # Black text on Cyan
     'quic': '\033[30;47m',  # Black text on White
-    'ntp': '\033[30;100m'   # Black text on Bright Black (Dark Grey)
+    'ntp': '\033[30;100m',  # Black text on Bright Black (Dark Grey)
+    'dhcp': '\033[30;101m'  # Black text on Bright Red
 }
 
 foreground_colors = {
@@ -24,7 +25,8 @@ foreground_colors = {
     'x509': '\033[35m',  # Magenta
     'files': '\033[36m', # Cyan
     'quic': '\033[37m',  # White
-    'ntp': '\033[90m'    # Bright Black (Dark Grey)
+    'ntp': '\033[90m',   # Bright Black (Dark Grey)
+    'dhcp': '\033[91m'   # Bright Red
 }
 
 reset_color = '\033[0m'
@@ -38,7 +40,8 @@ file_patterns = {
     'x509': 'x509.log',
     'files': 'files.log',
     'quic': 'quic.log',
-    'ntp': 'ntp.log'
+    'ntp': 'ntp.log',
+    'dhcp': 'dhcp.log'
 }
 
 # Setup argument parser
@@ -68,15 +71,19 @@ def process_text_log_line(log_type, parts):
         conn_entries.append(parts)
 
 def process_json_log_line(log_type, data):
-    if log_type == 'files':
-        uids.add(data['uid'])  # Collect UID from files.log
-        data = {'ts': data['ts'], 'log_type': log_type, 'uid': data['uid'], **data}
-    elif log_type != 'conn':
-        uids.add(data['uid'])  # Collect UID from other logs
-        data = {'ts': data['ts'], 'log_type': log_type, 'uid': data['uid'], **data}
-        log_entries.append((json.dumps(data), color_scheme[log_type]))
-    elif log_type == 'conn':
-        conn_entries.append(data)
+    if 'uid' in data:
+        uid = data['uid']
+        if log_type == 'files':
+            uids.add(uid)  # Collect UID from files.log
+        elif log_type != 'conn':
+            uids.add(uid)  # Collect UID from other logs
+            data = {'ts': data['ts'], 'log_type': log_type, 'uid': uid, **data}
+            log_entries.append((json.dumps(data), color_scheme[log_type]))
+        elif log_type == 'conn':
+            conn_entries.append(data)
+    else:
+        data = {'ts': data['ts'], 'log_type': log_type, **data}
+        log_entries.append((json.dumps(data), color_scheme.get(log_type, reset_color)))
 
 # Read and process each file
 for log_type, filename in file_patterns.items():
