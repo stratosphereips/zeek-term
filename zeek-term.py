@@ -47,11 +47,11 @@ file_patterns = {
 
 # Setup argument parser
 parser = argparse.ArgumentParser(description='Process log files with colored output.')
-parser.add_argument('--foreground', action='store_true', help='Use foreground colors instead of background colors')
-parser.add_argument('--directory', type=str, required=True, help='Directory where the Zeek log files are located')
-parser.add_argument('--filter-conn', action='store_true', help='Filter conn.log lines based on UIDs present in other logs')
-parser.add_argument('--no-ts-conversion', action='store_true', help='Disable conversion of ts to human-readable format')
-parser.add_argument('--timezone', type=str, default='UTC+2', help='Specify the timezone to use for conversion (e.g., UTC+2). If not specified, use "???" for the timezone.')
+parser.add_argument('-f', '--foreground', action='store_true', help='Use foreground colors instead of background colors')
+parser.add_argument('-d', '--directory', type=str, required=True, help='Directory where the Zeek log files are located')
+parser.add_argument('-c', '--filter-conn', action='store_true', help='Filter conn.log lines based on UIDs present in other logs')
+parser.add_argument('-n', '--no-ts-conversion', action='store_true', help='Disable conversion of ts to human-readable format')
+parser.add_argument('-t', '--timezone', type=str, default='UTC+2', help='Specify the timezone to use for conversion (e.g., UTC+2). If not specified, use "???" for the timezone.')
 
 args = parser.parse_args()
 
