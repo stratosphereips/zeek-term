@@ -3,6 +3,7 @@ import argparse
 import os
 import sys
 import json
+from datetime import datetime, timezone
 
 # Define ANSI escape codes for background and foreground colors
 background_colors = {
@@ -49,6 +50,7 @@ parser = argparse.ArgumentParser(description='Process log files with colored out
 parser.add_argument('--foreground', action='store_true', help='Use foreground colors instead of background colors')
 parser.add_argument('--directory', type=str, required=True, help='Directory where the Zeek log files are located')
 parser.add_argument('--filter-conn', action='store_true', help='Filter conn.log lines based on UIDs present in other logs')
+parser.add_argument('--no-ts-conversion', action='store_true', help='Disable conversion of ts to human-readable format')
 
 args = parser.parse_args()
 
@@ -59,7 +61,14 @@ uids = set()
 # Select the appropriate color scheme
 color_scheme = foreground_colors if args.foreground else background_colors
 
+def convert_ts(ts):
+    """Convert a Zeek timestamp to a human-readable format with timezone."""
+    dt = datetime.fromtimestamp(float(ts), tz=timezone.utc)
+    return dt.strftime('%Y-%m-%d %H:%M:%S %Z')
+
 def process_text_log_line(log_type, parts):
+    if args.no_ts_conversion is False:
+        parts[0] = convert_ts(parts[0])
     if log_type == 'files' and len(parts) > 3:
         uids.add(parts[2])  # Collect UID from files.log
         parts = [parts[0]] + [log_type] + [parts[2]] + parts[3:]  # Remove FUID, keep UID
@@ -71,6 +80,8 @@ def process_text_log_line(log_type, parts):
         conn_entries.append(parts)
 
 def process_json_log_line(log_type, data):
+    if args.no_ts_conversion is False:
+        data['ts'] = convert_ts(data['ts'])
     if 'uid' in data:
         uid = data['uid']
         if log_type == 'files':
