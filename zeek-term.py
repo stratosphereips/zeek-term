@@ -3,7 +3,7 @@ import argparse
 import os
 import sys
 import json
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 
 # Define ANSI escape codes for background and foreground colors
 background_colors = {
@@ -51,6 +51,7 @@ parser.add_argument('--foreground', action='store_true', help='Use foreground co
 parser.add_argument('--directory', type=str, required=True, help='Directory where the Zeek log files are located')
 parser.add_argument('--filter-conn', action='store_true', help='Filter conn.log lines based on UIDs present in other logs')
 parser.add_argument('--no-ts-conversion', action='store_true', help='Disable conversion of ts to human-readable format')
+parser.add_argument('--timezone', type=str, default='UTC+2', help='Specify the timezone to use for conversion (e.g., UTC+2). If not specified, use "???" for the timezone.')
 
 args = parser.parse_args()
 
@@ -61,13 +62,28 @@ uids = set()
 # Select the appropriate color scheme
 color_scheme = foreground_colors if args.foreground else background_colors
 
+# Parse timezone
+def parse_timezone(tz_str):
+    if tz_str == '???':
+        return timedelta(0), '???'
+    
+    if tz_str.startswith('UTC'):
+        sign = 1 if '+' in tz_str else -1
+        offset_hours = int(tz_str.split('UTC')[1])
+        tz = timezone(timedelta(hours=sign * offset_hours))
+        return tz, tz_str
+    return timezone(timedelta(0)), '???'
+
+tz, tz_name = parse_timezone(args.timezone)
+
 def convert_ts(ts):
-    """Convert a Zeek timestamp to a human-readable format with timezone."""
-    dt = datetime.fromtimestamp(float(ts), tz=timezone.utc)
-    return dt.strftime('%Y-%m-%d %H:%M:%S %Z')
+    """Convert a Zeek timestamp to a human-readable format preserving original precision."""
+    ts_str = f"{ts:.6f}"  # Ensure the timestamp has exactly 6 decimal places
+    dt = datetime.fromtimestamp(float(ts_str), tz=tz)
+    return dt.strftime(f'%Y-%m-%d %H:%M:%S.{ts_str.split(".")[1]} {tz_name}')
 
 def process_text_log_line(log_type, parts):
-    if args.no_ts_conversion is False:
+    if not args.no_ts_conversion:
         parts[0] = convert_ts(parts[0])
     if log_type == 'files' and len(parts) > 3:
         uids.add(parts[2])  # Collect UID from files.log
@@ -80,7 +96,7 @@ def process_text_log_line(log_type, parts):
         conn_entries.append(parts)
 
 def process_json_log_line(log_type, data):
-    if args.no_ts_conversion is False:
+    if not args.no_ts_conversion:
         data['ts'] = convert_ts(data['ts'])
     if 'uid' in data:
         uid = data['uid']
