@@ -10,7 +10,7 @@ background_colors = {
     'conn': '\033[30;41m',  # Black text on Red
     'http': '\033[30;42m',  # Black text on Green
     'dns': '\033[30;43m',   # Black text on Yellow
-    'ssl': '\033[30;44m',   # Black text on Blue
+    'ssl': '\033[30;46m',   # Black text on Cyan
     'x509': '\033[30;45m',  # Black text on Magenta
     'files': '\033[30;46m', # Black text on Cyan
     'quic': '\033[30;47m',  # Black text on White
@@ -22,7 +22,7 @@ foreground_colors = {
     'conn': '\033[31m',  # Red
     'http': '\033[32m',  # Green
     'dns': '\033[33m',   # Yellow
-    'ssl': '\033[34m',   # Blue
+    'ssl': '\033[36m',   # Cyan
     'x509': '\033[35m',  # Magenta
     'files': '\033[36m', # Cyan
     'quic': '\033[37m',  # White
