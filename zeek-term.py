@@ -78,7 +78,7 @@ tz, tz_name = parse_timezone(args.timezone)
 
 def convert_ts(ts):
     """Convert a Zeek timestamp to a human-readable format preserving original precision."""
-    ts_str = f"{ts:.6f}"  # Ensure the timestamp has exactly 6 decimal places
+    ts_str = f"{float(ts):.6f}"  # Ensure the timestamp has exactly 6 decimal places
     dt = datetime.fromtimestamp(float(ts_str), tz=tz)
     return dt.strftime(f'%Y-%m-%d %H:%M:%S.{ts_str.split(".")[1]} {tz_name}')
 
