@@ -47,7 +47,7 @@ file_patterns = {
 parser = argparse.ArgumentParser(description='Process log files with colored output.')
 parser.add_argument('-f', '--foreground', action='store_true', help='Use foreground colors')
 parser.add_argument('-d', '--directory', type=str, required=True, help='Zeek log directory')
-parser.add_argument('-c', '--filter-conn', action='store_true', help='Filter conn.log by UID')
+parser.add_argument('-c', '--filter-conn', action='store_true', help='If the flow is in other file, dont show the entry from conn.log')
 parser.add_argument('-n', '--no-ts-conversion', action='store_true', help='Disable timestamp conversion')
 parser.add_argument('-t', '--timezone', type=str, default='UTC+2', help='Timezone (e.g. UTC+2)')
 
@@ -63,7 +63,7 @@ color_scheme = foreground_colors if args.foreground else background_colors
 # Parse timezone string
 def parse_timezone(tz_str):
     if tz_str == '???':
-        return timedelta(0), '???'
+        return timezone.utc, '???'
     if tz_str.startswith('UTC'):
         sign = 1 if '+' in tz_str else -1
         offset = int(tz_str.split('UTC')[1])
@@ -141,6 +141,12 @@ for log_type, filename in file_patterns.items():
                         process_text_log_line(log_type, parts)
 
 # Handle conn.log with optional UID filtering
+# -------------------------------------------
+# This block processes all collected connection records (conn.log).
+# It checks whether each connection's UID is already present in other logs,
+# and optionally filters them out if the --filter-conn flag is set.
+# The idea is that if the flow is on other file appart from conn.log, 
+# you know it has a conn.log entry, so dont show it
 for record in conn_entries:
     uid = record.get('uid', '-')
     if args.filter_conn and uid in uids:
@@ -154,19 +160,21 @@ for record in conn_entries:
     ] + [record.get(k, '-') for k in log_headers.get('conn', []) if k not in ('ts', 'uid')])
     log_entries.append((line, color_scheme['conn']))
 
-# Sort entries by timestamp
+# Sort all log entries by timestamp (handles both raw and formatted timestamps)
 def extract_ts(entry):
     ts_str = entry[0].split('\t')[0]
     try:
         if ' ' in ts_str:
-            return datetime.strptime(ts_str, "%Y-%m-%d %H:%M:%S.%f %Z").timestamp()
-        return float(ts_str)
+            ts_main = ' '.join(ts_str.split(' ')[:2])  # "YYYY-MM-DD HH:MM:SS.microsec"
+            return datetime.strptime(ts_main, "%Y-%m-%d %H:%M:%S.%f").timestamp()
+        else:
+            return float(ts_str)
     except:
         return 0
 
 log_entries.sort(key=extract_ts)
 
-# Print results with color
+# Output
 for line, color in log_entries:
     print(f"{color}{line}{reset_color}")
 
