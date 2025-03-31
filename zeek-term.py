@@ -45,9 +45,9 @@ file_patterns = {
 
 # Argument parsing
 parser = argparse.ArgumentParser(description='Process Zeek log files with colored output.')
-parser.add_argument('-f', '--foreground', action='store_true', help='Use foreground colors')
+parser.add_argument('-f', '--foreground', action='store_true', default=True, help='Use foreground colors')
 parser.add_argument('-d', '--directory', type=str, required=True, help='Zeek log directory')
-parser.add_argument('-c', '--filter-conn', action='store_true', help='Filter conn.log by UID')
+parser.add_argument('-c', '--filter-conn', action='store_true', default=True,help='Filter conn.log by UID')
 parser.add_argument('-n', '--no-ts-conversion', action='store_true', help='Disable timestamp conversion')
 parser.add_argument('-t', '--timezone', type=str, default='UTC+2', help='Timezone (e.g. UTC+2)')
 
