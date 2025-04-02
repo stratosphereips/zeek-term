@@ -88,7 +88,7 @@ def process_text_log_line(log_type, parts):
 
     record = dict(zip(header, parts))
 
-    if not args.no_ts_conversation and 'ts' in record:
+    if not args.no_ts_conversion and 'ts' in record:
         record['ts'] = convert_ts(record['ts'])
 
     if log_type == 'files' and 'uid' in record:
