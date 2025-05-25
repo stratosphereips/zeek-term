@@ -47,7 +47,7 @@ file_patterns = {
 parser = argparse.ArgumentParser(description='Process Zeek log files with colored output.')
 parser.add_argument('-f', '--foreground', action='store_true', default=True, help='Use foreground colors')
 parser.add_argument('-d', '--directory', type=str, required=True, help='Zeek log directory')
-parser.add_argument('-c', '--filter-conn', action='store_true', default=True,help='Filter conn.log by UID')
+parser.add_argument('-c', '--filter-conn', action='store_true', default=True, help='Filter conn.log by UID')
 parser.add_argument('-n', '--no-ts-conversion', action='store_true', help='Disable timestamp conversion')
 parser.add_argument('-t', '--timezone', type=str, default='UTC+2', help='Timezone (e.g. UTC+2)')
 
@@ -76,7 +76,7 @@ def convert_ts(ts):
     try:
         ts_float = float(ts)
     except ValueError:
-        return ts  # already formatted
+        return ts
     ts_str = f"{ts_float:.6f}"
     dt = datetime.fromtimestamp(ts_float, tz=tz)
     return dt.strftime(f'%Y-%m-%d %H:%M:%S.{ts_str.split(".")[1]} {tz_name}')
@@ -85,17 +85,13 @@ def process_text_log_line(log_type, parts):
     header = log_headers.get(log_type)
     if not header or len(parts) != len(header):
         return
-
     record = dict(zip(header, parts))
-
     if not args.no_ts_conversion and 'ts' in record:
         record['ts'] = convert_ts(record['ts'])
-
     if log_type == 'files' and 'uid' in record:
         uids.add(record['uid'])
     elif log_type != 'conn' and 'uid' in record:
         uids.add(record['uid'])
-
     if log_type == 'conn':
         conn_entries.append(record)
     else:
@@ -109,10 +105,8 @@ def process_text_log_line(log_type, parts):
 def process_json_log_line(log_type, data):
     if not args.no_ts_conversion and 'ts' in data:
         data['ts'] = convert_ts(data['ts'])
-
     if 'uid' in data and log_type != 'conn':
         uids.add(data['uid'])
-
     if log_type == 'conn':
         conn_entries.append(data)
     else:
@@ -144,28 +138,24 @@ for record in conn_entries:
     uid = record.get('uid', '-')
     if args.filter_conn and uid in uids:
         continue
-
     ts_val = record.get('ts', '0')
     ts_str = ts_val if args.no_ts_conversion or ' ' in str(ts_val) else convert_ts(ts_val)
-
-    # Determine fields to print
     fields = log_headers.get('conn')
     if not fields:
         fields = sorted(k for k in record.keys() if k not in ('ts', 'uid'))
-
     line = '\t'.join([
         ts_str,
         'conn',
         uid
-    ] + [str(record.get(k, '-')) for k in fields])
+    ] + [str(record.get(k, '-')) for k in fields if k not in ('ts', 'uid', 'ts')])
     log_entries.append((line, color_scheme['conn']))
 
-# Sort log entries by timestamp (handles both formatted and raw timestamps)
+# Sort log entries by timestamp
 def extract_ts(entry):
     ts_str = entry[0].split('\t')[0]
     try:
         if ' ' in ts_str:
-            ts_main = ' '.join(ts_str.split(' ')[:2])  # e.g. '2025-03-31 08:41:08.271441'
+            ts_main = ' '.join(ts_str.split(' ')[:2])
             return datetime.strptime(ts_main, "%Y-%m-%d %H:%M:%S.%f").timestamp()
         return float(ts_str)
     except:
@@ -176,4 +166,3 @@ log_entries.sort(key=extract_ts)
 # Print results
 for line, color in log_entries:
     print(f"{color}{line}{reset_color}")
-
