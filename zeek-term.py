@@ -1,8 +1,12 @@
 #!/usr/bin/env python
 import argparse
 import os
+import sys
 import json
+import gzip
+import glob
 from datetime import datetime, timezone, timedelta
+import math
 
 # ANSI color schemes
 background_colors = {
@@ -73,12 +77,21 @@ def parse_timezone(tz_str):
 tz, tz_name = parse_timezone(args.timezone)
 
 def convert_ts(ts):
+    # Preserve empty/missing values and already non-numeric strings.
+    ts_raw = str(ts).strip()
+    if ts is None or ts_raw in ('', '-'):
+        return ts_raw if ts is not None else '-'
+
     try:
-        ts_float = float(ts)
-    except ValueError:
-        return ts
+        ts_float = float(ts_raw)
+        # Avoid platform errors for nan/inf or out-of-range values.
+        if not math.isfinite(ts_float):
+            return ts_raw
+        dt = datetime.fromtimestamp(ts_float, tz=tz)
+    except (TypeError, ValueError, OverflowError, OSError):
+        return ts_raw
+
     ts_str = f"{ts_float:.6f}"
-    dt = datetime.fromtimestamp(ts_float, tz=tz)
     return dt.strftime(f'%Y-%m-%d %H:%M:%S.{ts_str.split(".")[1]} {tz_name}')
 
 def process_text_log_line(log_type, parts):
@@ -111,27 +124,43 @@ def process_json_log_line(log_type, data):
         conn_entries.append(data)
     else:
         line = '\t'.join([
-            data.get('ts', '-'),
+            str(data.get('ts', '-')),
             log_type,
-            data.get('uid', '-')
+            str(data.get('uid', '-'))
         ] + [str(v) for k, v in data.items() if k not in ('ts', 'uid')])
         log_entries.append((line, color_scheme[log_type]))
 
-# Read and process each log file
-for log_type, filename in file_patterns.items():
-    filepath = os.path.join(args.directory, filename)
-    if os.path.isfile(filepath):
-        with open(filepath, 'r') as f:
-            for line in f:
-                if line.startswith('#fields'):
-                    log_headers[log_type] = line.strip().split('\t')[1:]
-                elif not line.startswith('#'):
-                    try:
-                        data = json.loads(line.strip())
-                        process_json_log_line(log_type, data)
-                    except json.JSONDecodeError:
-                        parts = line.strip().split('\t')
-                        process_text_log_line(log_type, parts)
+# Read and process all log files for each type (including rotated and .gz files)
+for log_type, pattern in file_patterns.items():
+    base = os.path.join(args.directory, pattern.replace('.log', ''))
+    candidates = glob.glob(f"{base}*.log") + glob.glob(f"{base}*.log.gz")
+
+    for filepath in sorted(candidates):
+        open_func = gzip.open if filepath.endswith('.gz') else open
+        mode = 'rt' if filepath.endswith('.gz') else 'r'
+
+        try:
+            with open_func(filepath, mode) as f:
+                for line in f:
+                    if line.startswith('#fields'):
+                        log_headers[log_type] = line.strip().split('\t')[1:]
+                    elif not line.startswith('#'):
+                        raw = line.strip()
+                        if not raw:
+                            continue
+                        try:
+                            data = json.loads(raw)
+                            # Only JSON objects should be treated as JSON records.
+                            if isinstance(data, dict):
+                                process_json_log_line(log_type, data)
+                            else:
+                                parts = raw.split('\t')
+                                process_text_log_line(log_type, parts)
+                        except json.JSONDecodeError:
+                            parts = raw.split('\t')
+                            process_text_log_line(log_type, parts)
+        except Exception as e:
+            print(f"Failed to read {filepath}: {e}", file=sys.stderr)
 
 # Handle conn.log with optional UID filtering
 for record in conn_entries:
@@ -147,7 +176,7 @@ for record in conn_entries:
         ts_str,
         'conn',
         uid
-    ] + [str(record.get(k, '-')) for k in fields if k not in ('ts', 'uid', 'ts')])
+    ] + [str(record.get(k, '-')) for k in fields if k not in ('ts', 'uid')])
     log_entries.append((line, color_scheme['conn']))
 
 # Sort log entries by timestamp
