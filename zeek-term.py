@@ -148,15 +148,49 @@ for log_type, pattern in file_patterns.items():
                         raw = line.strip()
                         if not raw:
                             continue
+
+                        parsed = False
                         try:
                             data = json.loads(raw)
-                            # Only JSON objects should be treated as JSON records.
+
                             if isinstance(data, dict):
                                 process_json_log_line(log_type, data)
-                            else:
-                                parts = raw.split('\t')
-                                process_text_log_line(log_type, parts)
-                        except json.JSONDecodeError:
+                                parsed = True
+                            elif isinstance(data, str):
+                                # Handle double-encoded JSON objects.
+                                try:
+                                    nested = json.loads(data)
+                                    if isinstance(nested, dict):
+                                        process_json_log_line(log_type, nested)
+                                        parsed = True
+                                except json.JSONDecodeError:
+                                    pass
+                            elif isinstance(data, list):
+                                # Handle a list of JSON records.
+                                if data and all(isinstance(item, dict) for item in data):
+                                    for item in data:
+                                        process_json_log_line(log_type, item)
+                                    parsed = True
+                        except json.JSONDecodeError as e:
+                            # Handle concatenated JSON objects on a single line.
+                            if raw.startswith('{') and 'Extra data' in str(e):
+                                decoder = json.JSONDecoder()
+                                idx = 0
+                                while idx < len(raw):
+                                    while idx < len(raw) and raw[idx].isspace():
+                                        idx += 1
+                                    if idx >= len(raw):
+                                        break
+                                    try:
+                                        item, end = decoder.raw_decode(raw, idx)
+                                    except json.JSONDecodeError:
+                                        break
+                                    if isinstance(item, dict):
+                                        process_json_log_line(log_type, item)
+                                        parsed = True
+                                    idx = end
+
+                        if not parsed:
                             parts = raw.split('\t')
                             process_text_log_line(log_type, parts)
         except Exception as e:
